@@ -32,14 +32,14 @@ namespace pstyle {
 
     template<class Ta, class Tb>
     void _print(const std::map<Ta, Tb> &m) {
-        for (const auto it: m) {
+        for (const auto& it: m) {
             std::cout << it.first << ':' << it.second << ' ';
         }
     }
 
     template<class Ta, class Tb>
     void _print(const std::unordered_map<Ta, Tb> &m) {
-        for (const auto it: m) {
+        for (const auto& it: m) {
             std::cout << it.first << ':' << it.second << ' ';
         }
     }

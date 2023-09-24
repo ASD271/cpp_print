@@ -1,4 +1,4 @@
-an easily used print function wrapped cout
+an easily used print function wrapped cout, and can use it directly by copy print.h
 
 ```c++
 bitset<8> b(string("01110000"));
