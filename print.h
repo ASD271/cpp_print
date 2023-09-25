@@ -64,6 +64,11 @@ namespace pstyle {
         }
     }
 
+    template<typename Ta,typename Tb>
+    void _print(const std::pair<Ta,Tb>& x){
+        std::cout<<x.first<<' '<<x.second<<' ';
+    }
+
     template<typename T, typename=void>
     struct has_begin_end : std::false_type {
     };

@@ -8,7 +8,8 @@ using namespace std;
 
 int main() {
     bitset<8> b(string("01110000"));
-    print("hello",b,13);
+    auto c=std::make_pair(16,"xx");
+    print("hello",b,13,c);
 
     print();
 
