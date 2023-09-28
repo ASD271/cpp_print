@@ -115,7 +115,7 @@ namespace pstyle {
             for (const auto &i: args) {
                 if (!first) *(params.out) << ',';
                 first = false;
-                *(params.out) << i;
+                _print(i);
 
             }
             *(params.out) << ']';
@@ -126,11 +126,16 @@ namespace pstyle {
 void sep(const Params &p) {
     *(p.out) << p.sep;
 }
-void print(const Params &p) {
+
+template<typename T>
+typename std::enable_if<std::is_same_v<T,Params>>::type
+print(const T &p) {
     *(p.out) << p.end;
 }
 
-void print() {
+template<typename... Ts>
+typename std::enable_if<sizeof...(Ts)==0>::type
+print() {
     std::cout << "\n";
 }
 
@@ -147,8 +152,8 @@ void print(const T &arg, const Ts &... args) {
             pstyle::_print(arg);
             sep({});
         }
-        print(args...);
-    } else {// this function will be called only when params is not settle
+        print(args...);// no need to print sep if it is the last object to print
+    } else {// this branch will be called only when params is not settle
         pstyle::_print(arg);
         print();
     }

@@ -15,4 +15,7 @@ int main() {
     std::ofstream file("test.txt");
     bitset<8> b(string("01110000"));
     print("hello",b,13,Params{.out=&file});
+
+    vector<vector<int>> vs{{1,2,3},{4,5,6},{7,8,9}};
+    print(vs);
 }
