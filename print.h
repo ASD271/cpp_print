@@ -19,7 +19,7 @@ struct Params {
     std::string end = "\n";
     std::ostream *out = &std::cout;
 };
-namespace pstyle {
+namespace{
 
     template<typename Inst, template<typename...> typename Tmpl>
     struct is_instantiation_of : std::false_type {
@@ -55,47 +55,56 @@ namespace pstyle {
     const bool is_one_instantiation_of_v = is_one_instantiation_of<Inst, Tmpl, Rest...>::value;
 
     template<typename T>
-    typename std::enable_if_t<is_one_of<std::decay_t<T>, int, long, long long, unsigned,
-            unsigned long, unsigned long long,
-            float, double, long double, std::string, char*, char>::value>
+    constexpr bool is_unit = std::is_integral_v<std::decay_t<T>> || std::is_floating_point_v<std::decay_t<T>> ||
+                             is_one_of<std::decay_t<T>, std::string, char *>::value;
+
+    template<typename T>
+    constexpr bool is_simple_container = is_one_instantiation_of_v<std::decay_t<T>,
+            std::vector, std::deque, std::list, std::forward_list,
+            std::set, std::multiset, std::unordered_set, std::unordered_multiset>;
+
+    template<typename T>
+    constexpr bool is_kv_container = is_one_instantiation_of_v<std::decay_t<T>,
+            std::map, std::unordered_map, std::multimap, std::unordered_multimap>;
+
+    template<typename T>
+    const bool is_ready_type = is_unit<T>|| is_simple_container<T> || is_kv_container<T>;
+
+    template<typename T>
+    std::enable_if_t<is_unit<T>>
     _print(const T &x, const Params &params = {}) {
         *(params.out) << x;
     }
 
-    template<typename T>
-    std::enable_if_t<std::is_same_v<std::decay_t<T>,bool>>
-    _print(const T& v, const Params &params = {}){
-        *(params.out)<<(v?"true":"false");
+    void
+    _print(const bool &v, const Params &params = {}) {
+        *(params.out) << (v ? "true" : "false");
     }
 
     template<typename Ts>
-    typename std::enable_if_t<is_one_instantiation_of_v<std::decay_t<Ts>,
-            std::vector, std::deque, std::list, std::forward_list,
-            std::set, std::multiset, std::unordered_set, std::unordered_multiset>>
+    std::enable_if_t<is_simple_container<Ts>>
     _print(const Ts &args, const Params &params = {}) {
         bool first = true;
         *(params.out) << '[';
         for (const auto &i: args) {
             if (!first) *(params.out) << ',';
             first = false;
-            _print(i,params);
+            _print(i, params);
         }
         *(params.out) << ']';
     }
 
     template<typename T>
-    std::enable_if_t<
-            is_one_instantiation_of_v<
-                    std::decay_t<T>, std::map, std::unordered_map, std::multimap, std::unordered_multimap>>
+    std::enable_if_t<is_kv_container<T>>
     _print(const T &m, const Params &params = {}) {
         *(params.out) << '{';
         bool first = true;
         for (const auto &it: m) {
             if (!first) *(params.out) << ',';
             first = false;
-            _print(it.first,params);
+            _print(it.first, params);
             *(params.out) << ':';
-            _print(it.second,params);
+            _print(it.second, params);
         }
         *(params.out) << '}';
     }
@@ -113,7 +122,7 @@ namespace pstyle {
         while (!s2.empty()) {
             if (!first) *(params.out) << ',';
             first = false;
-            _print(s2.top(),params);
+            _print(s2.top(), params);
             s2.pop();
         }
         *(params.out) << ']';
@@ -127,10 +136,16 @@ namespace pstyle {
         while (!q2.empty()) {
             if (!first) *(params.out) << ',';
             first = false;
-            _print(q2.front(),params);
+            _print(q2.front(), params);
             q2.pop();
         }
         *(params.out) << ']';
+    }
+
+    template<typename T>
+    std::enable_if_t<!is_ready_type<T>>
+    _print(const T& x,const Params& params={}){
+        *(params.out)<<x;
     }
 
     template<size_t s>
@@ -148,18 +163,20 @@ namespace pstyle {
     template<std::size_t I = 0, typename... Ts>
     void _print(const std::tuple<Ts...> &tuple, const Params &params = {}) {
         if constexpr (I < sizeof...(Ts)) {
-            _print(std::get<I>(tuple),params);
+            _print(std::get<I>(tuple), params);
             if constexpr (I != sizeof...(Ts) - 1) *(params.out) << ',';
-            _print<I + 1>(tuple,params);
+            _print<I + 1>(tuple, params);
         }
     }
 
     template<typename Ta, typename Tb>
     void _print(const std::pair<Ta, Tb> &x, const Params &params = {}) {
-        _print(x.first,params);
-        _print(',',params);
-        _print(x.second,params);
+        _print(x.first, params);
+        _print(',', params);
+        _print(x.second, params);
     }
+
+
 }
 
 void sep(const Params &p) {
@@ -183,17 +200,17 @@ void print(const T &arg, const Ts &... args) {
     if constexpr (sizeof...(args) > 0) {
         const auto &last = (args, ...);
         if constexpr (std::is_same_v<decltype(last), const Params &>) {
-            pstyle::_print(arg, last);
+            _print(arg, last);
             if constexpr (sizeof...(args) > 1) {
                 sep(last);
             }
         } else {
-            pstyle::_print(arg);
+            _print(arg);
             sep({});
         }
         print(args...);// no need to print sep if it is the last object to print
     } else {// this branch will be called only when params is not settle
-        pstyle::_print(arg);
+        _print(arg);
         print();
     }
 }

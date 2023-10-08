@@ -27,3 +27,20 @@ will output like
 hello 1110000 13
 ```
 
+besides, you can operator << for your own class.
+```c++
+class A{
+    int x=1,y=2;
+    friend ostream& operator<<(ostream& os,const A& a){
+        os<<"this is an A instance: "<<a.x<<' '<<a.y;
+        return os;
+    }
+};
+...
+A a{};
+print(a);
+```
+will output like
+```
+this is an A instance: 1 2
+```
