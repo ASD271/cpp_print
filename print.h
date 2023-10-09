@@ -20,7 +20,7 @@ struct Params {
     std::string end = "\n";
     std::ostream *out = &std::cout;
 };
-namespace {
+namespace cpp_print{
 // Checks magic_enum compiler compatibility.
 #if defined(__clang__) && __clang_major__ >= 5 || defined(__GNUC__) && __GNUC__ >= 9 || defined(_MSC_VER) && _MSC_VER >= 1910 || defined(__RESHARPER__)
 #  undef  MAGIC_ENUM_SUPPORTED
@@ -341,17 +341,17 @@ void print(const T &arg, const Ts &... args) {
     if constexpr (sizeof...(args) > 0) {
         const auto &last = (args, ...);
         if constexpr (std::is_same_v<decltype(last), const Params &>) {
-            _print(arg, last);
+            cpp_print::_print(arg, last);
             if constexpr (sizeof...(args) > 1) {
                 sep(last);
             }
         } else {
-            _print(arg);
+            cpp_print::_print(arg);
             sep({});
         }
         print(args...);// no need to print sep if it is the last object to print
     } else {// this branch will be called only when params is not settle
-        _print(arg);
+        cpp_print::_print(arg);
         print();
     }
 }
