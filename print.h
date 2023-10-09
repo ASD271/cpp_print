@@ -19,7 +19,24 @@ struct Params {
     std::string end = "\n";
     std::ostream *out = &std::cout;
 };
-namespace{
+namespace {
+// Checks magic_enum compiler compatibility.
+#if defined(__clang__) && __clang_major__ >= 5 || defined(__GNUC__) && __GNUC__ >= 9 || defined(_MSC_VER) && _MSC_VER >= 1910 || defined(__RESHARPER__)
+#  undef  MAGIC_ENUM_SUPPORTED
+#  define MAGIC_ENUM_SUPPORTED 1
+#endif
+
+    // Enum value must be greater or equals than MAGIC_ENUM_RANGE_MIN. By default MAGIC_ENUM_RANGE_MIN = -128.
+// If need another min range for all enum types by default, redefine the macro MAGIC_ENUM_RANGE_MIN.
+#if !defined(MAGIC_ENUM_RANGE_MIN)
+#  define MAGIC_ENUM_RANGE_MIN -128
+#endif
+
+// Enum value must be less or equals than MAGIC_ENUM_RANGE_MAX. By default MAGIC_ENUM_RANGE_MAX = 128.
+// If need another max range for all enum types by default, redefine the macro MAGIC_ENUM_RANGE_MAX.
+#if !defined(MAGIC_ENUM_RANGE_MAX)
+#  define MAGIC_ENUM_RANGE_MAX 127
+#endif
 
     template<typename Inst, template<typename...> typename Tmpl>
     struct is_instantiation_of : std::false_type {
@@ -55,8 +72,12 @@ namespace{
     const bool is_one_instantiation_of_v = is_one_instantiation_of<Inst, Tmpl, Rest...>::value;
 
     template<typename T>
-    constexpr bool is_unit = std::is_integral_v<std::decay_t<T>> || std::is_floating_point_v<std::decay_t<T>> ||
-                             is_one_of<std::decay_t<T>, std::string, char *>::value;
+    constexpr bool is_special_unit= std::is_same_v<std::decay_t<T>,bool> || std::is_enum_v<std::decay_t<T>>;
+
+    template<typename T>
+    constexpr bool is_simple_unit = (std::is_integral_v<std::decay_t<T>> || std::is_floating_point_v<std::decay_t<T>> ||
+                                     is_one_of<std::decay_t<T>, std::string, char *, std::string_view>::value) &&
+                                    (!is_special_unit<T>);
 
     template<typename T>
     constexpr bool is_simple_container = is_one_instantiation_of_v<std::decay_t<T>,
@@ -68,16 +89,101 @@ namespace{
             std::map, std::unordered_map, std::multimap, std::unordered_multimap>;
 
     template<typename T>
-    const bool is_ready_type = is_unit<T>|| is_simple_container<T> || is_kv_container<T>;
+    const bool is_ready_type = is_simple_unit<std::decay_t<T>> || is_simple_container<std::decay_t<T>>
+                               || is_kv_container<std::decay_t<T>> || is_special_unit<T>;
+
+    constexpr std::string_view pretty_name(std::string_view name) noexcept {
+        for (std::size_t i = name.size(); i > 0; --i) {
+            if (!((name[i - 1] >= '0' && name[i - 1] <= '9') ||
+                  (name[i - 1] >= 'a' && name[i - 1] <= 'z') ||
+                  (name[i - 1] >= 'A' && name[i - 1] <= 'Z') ||
+                  #if defined(MAGIC_ENUM_ENABLE_NONASCII)
+                  (name[i - 1] & 0x80) ||
+                  #endif
+                  (name[i - 1] == '_'))) {
+                name.remove_prefix(i);
+                break;
+            }
+        }
+
+        // 这里检查名称是否有效，注意到这里和前面稍有不同，这里不允许出现数字
+        if (name.size() > 0 && ((name.front() >= 'a' && name.front() <= 'z') ||
+                                (name.front() >= 'A' && name.front() <= 'Z') ||
+                                #if defined(MAGIC_ENUM_ENABLE_NONASCII)
+                                (name.front() & 0x80) ||
+                                #endif
+                                (name.front() == '_'))) {
+            return name;
+        }
+
+        return {}; // Invalid name.
+    }
+
+    template<typename E, E V>
+    constexpr auto name() noexcept {
+        static_assert(std::is_enum_v<E>, "magic_enum::detail::n requires enum type.");
+
+#if defined(MAGIC_ENUM_SUPPORTED) && MAGIC_ENUM_SUPPORTED
+        #  if defined(__clang__) || defined(__GNUC__)
+    constexpr auto name = pretty_name({__PRETTY_FUNCTION__, sizeof(__PRETTY_FUNCTION__) - 2});
+#  elif defined(_MSC_VER)
+    constexpr auto name = pretty_name({__FUNCSIG__, sizeof(__FUNCSIG__) - 17});
+#  endif
+    return name;
+#else
+        return std::string_view{}; // Unsupported compiler.
+#endif
+    }
+
+    template<typename E,typename U,U x,typename=void>
+    struct could_static_cast:std::false_type{};
+    template<typename E,typename U,U x>
+    struct could_static_cast<E,U,x,std::void_t<
+            decltype( static_cast<E>(x)  )
+    >>:std::true_type{};
+
+    template<typename T, size_t i>
+    auto check_enum() ->std::enable_if_t<could_static_cast<T,size_t,i>::value,std::string_view> {
+        return name<T, static_cast<T>(i)>();
+    }
+
+    template<typename T, size_t i>
+    auto check_enum(...) -> std::enable_if_t<!could_static_cast<T,size_t,i>::value,std::string_view> {
+        return "";
+    }
+
+    template<typename T, size_t... ids>
+    [[nodiscard]] constexpr auto names_impl(std::index_sequence<ids...>) {
+        return std::array<std::string_view, sizeof...(ids)>{check_enum<T, ids>()...};
+    }
+
+
+
+    template<typename T, size_t num>
+    [[nodiscard]]  auto names() {
+        static const auto result = names_impl<T>(std::make_index_sequence<num>());
+        return result;
+    }
+
 
     template<typename T>
-    std::enable_if_t<is_unit<T>>
+    void _print(T *const &x, const Params &params = {});
+
+    template<typename T>
+    std::enable_if_t<is_simple_unit<T>>
     _print(const T &x, const Params &params = {}) {
         *(params.out) << x;
     }
 
-    void
-    _print(const bool &v, const Params &params = {}) {
+    template<typename T>
+    std::enable_if_t<std::is_enum_v<std::decay_t<T>>>
+    _print(const T& t,const Params &params={}){
+        _print(names<T, MAGIC_ENUM_RANGE_MAX>()[t]);
+    }
+
+    template<typename T>
+    std::enable_if_t<std::is_same_v<std::decay_t<T>, bool>>
+    _print(const T &v, const Params &params = {}) {
         *(params.out) << (v ? "true" : "false");
     }
 
@@ -142,10 +248,29 @@ namespace{
         *(params.out) << ']';
     }
 
+    template<typename T, size_t I>
+    void _print(const std::array<T, I> &a, const Params &params = {}) {
+        *(params.out) << '[';
+        bool first = true;
+        for (int i = 0; i < a.size(); i++) {
+            if (!first) *(params.out) << ',';
+            first = false;
+            _print(a[i], params);
+        }
+        *(params.out) << ']';
+    }
+
+
     template<typename T>
     std::enable_if_t<!is_ready_type<T>>
-    _print(const T& x,const Params& params={}){
-        *(params.out)<<x;
+    _print(const T &x, const Params &params = {}) {
+        *(params.out) << x;
+    }
+
+    template<typename T>
+    void
+    _print(T *const &x, const Params &params) {
+        _print(*x, params);
     }
 
     template<size_t s>
