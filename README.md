@@ -55,4 +55,4 @@ will output
 one two three last
 ```
 
-this feature is origin from [magic_enum](https://github.com/Neargye/magic_enum),  and enum num is in range (MAGIC_ENUM_RANGE_MIN , MAGIC_ENUM_RANGE_MAX) (two define, you can change them in print.h). However, if the range more than 2000, compilation speed will become very slow.  
+this feature is origin from [magic_enum](https://github.com/Neargye/magic_enum),  and enum num can only be recognized when in range (MAGIC_ENUM_RANGE_MIN , MAGIC_ENUM_RANGE_MAX) (two integer defined in print.h). However, if the range more than 2000, compilation speed will become very slow.  
