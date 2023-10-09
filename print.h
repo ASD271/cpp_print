@@ -13,6 +13,7 @@
 #include <forward_list>
 #include <set>
 #include <unordered_set>
+#include <sstream>
 
 struct Params {
     std::string sep = " ";
@@ -72,7 +73,7 @@ namespace {
     const bool is_one_instantiation_of_v = is_one_instantiation_of<Inst, Tmpl, Rest...>::value;
 
     template<typename T>
-    constexpr bool is_special_unit= std::is_same_v<std::decay_t<T>,bool> || std::is_enum_v<std::decay_t<T>>;
+    constexpr bool is_special_unit = std::is_same_v<std::decay_t<T>, bool> || std::is_enum_v<std::decay_t<T>>;
 
     template<typename T>
     constexpr bool is_simple_unit = (std::is_integral_v<std::decay_t<T>> || std::is_floating_point_v<std::decay_t<T>> ||
@@ -93,6 +94,7 @@ namespace {
                                || is_kv_container<std::decay_t<T>> || is_special_unit<T>;
 
     constexpr std::string_view pretty_name(std::string_view name) noexcept {
+        // guide from https://zhuanlan.zhihu.com/p/464758750
         for (std::size_t i = name.size(); i > 0; --i) {
             if (!((name[i - 1] >= '0' && name[i - 1] <= '9') ||
                   (name[i - 1] >= 'a' && name[i - 1] <= 'z') ||
@@ -124,44 +126,52 @@ namespace {
         static_assert(std::is_enum_v<E>, "magic_enum::detail::n requires enum type.");
 
 #if defined(MAGIC_ENUM_SUPPORTED) && MAGIC_ENUM_SUPPORTED
-        #  if defined(__clang__) || defined(__GNUC__)
-    constexpr auto name = pretty_name({__PRETTY_FUNCTION__, sizeof(__PRETTY_FUNCTION__) - 2});
+#  if defined(__clang__) || defined(__GNUC__)
+        constexpr auto name = pretty_name({__PRETTY_FUNCTION__, sizeof(__PRETTY_FUNCTION__) - 2});
 #  elif defined(_MSC_VER)
-    constexpr auto name = pretty_name({__FUNCSIG__, sizeof(__FUNCSIG__) - 17});
+        constexpr auto name = pretty_name({__FUNCSIG__, sizeof(__FUNCSIG__) - 17});
 #  endif
-    return name;
+        return name;
 #else
         return std::string_view{}; // Unsupported compiler.
 #endif
     }
 
-    template<typename E,typename U,U x,typename=void>
-    struct could_static_cast:std::false_type{};
-    template<typename E,typename U,U x>
-    struct could_static_cast<E,U,x,std::void_t<
-            decltype( static_cast<E>(x)  )
-    >>:std::true_type{};
+    template<typename E, typename U, U x, typename=void>
+    struct could_static_cast : std::false_type {
+    };
+    template<typename E, typename U, U x>
+    struct could_static_cast<E, U, x, std::void_t<
+            decltype(static_cast<E>(x))
+    >> : std::true_type {
+    };
 
     template<typename T, size_t i>
-    auto check_enum() ->std::enable_if_t<could_static_cast<T,size_t,i>::value,std::string_view> {
-        return name<T, static_cast<T>(i)>();
+    auto check_enum(std::unordered_map<size_t, std::string_view>& m)
+    -> std::enable_if_t<could_static_cast<T, size_t, i>::value, std::string_view> {
+        std::string_view temp=name<T, static_cast<T>(i)>();
+        if(!temp.empty()) m[i]=temp;
+        return temp;
     }
 
     template<typename T, size_t i>
-    auto check_enum(...) -> std::enable_if_t<!could_static_cast<T,size_t,i>::value,std::string_view> {
-        return "";
+    auto check_enum(...) -> std::enable_if_t<!could_static_cast<T, size_t, i>::value, std::string_view> {
+        return {};
     }
 
-    template<typename T, size_t... ids>
-    [[nodiscard]] constexpr auto names_impl(std::index_sequence<ids...>) {
-        return std::array<std::string_view, sizeof...(ids)>{check_enum<T, ids>()...};
+    template<typename T, size_t... idPos, size_t... idNeg>
+    [[nodiscard]] auto names_impl(std::index_sequence<idPos...>, std::index_sequence<idNeg...>) {
+        std::unordered_map<size_t, std::string_view> m{};
+        ((check_enum<T,idPos>(m)),...);
+        ((check_enum<T,-idNeg>(m)),...);
+        return m;
     }
 
 
-
-    template<typename T, size_t num>
+    template<typename T>
     [[nodiscard]]  auto names() {
-        static const auto result = names_impl<T>(std::make_index_sequence<num>());
+        static const auto result = names_impl<T> (std::make_index_sequence<MAGIC_ENUM_RANGE_MAX>(),
+                                                 std::make_index_sequence<- MAGIC_ENUM_RANGE_MIN>());
         return result;
     }
 
@@ -177,8 +187,14 @@ namespace {
 
     template<typename T>
     std::enable_if_t<std::is_enum_v<std::decay_t<T>>>
-    _print(const T& t,const Params &params={}){
-        _print(names<T, MAGIC_ENUM_RANGE_MAX>()[t]);
+    _print(const T &t, const Params &params = {}) {
+        std::stringstream ss;
+        if(names<T>().count(t)){
+            ss<<names<T>()[t];
+        }else{
+            ss<<"[warning: this enum "<<t<<" is not recognized]";
+        }
+        _print(ss.str());
     }
 
     template<typename T>

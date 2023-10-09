@@ -8,13 +8,12 @@ class A{
         return os;
     }
 };
-enum {one,two,three};
+enum {one=-5,two=0,three=5,last=126};
 int main() {
     A a{};
     array<int,5> arr{1,2,3,4,5};
-    print(a,arr,three);
-    print(1, 2, "hello");
-    print(1, false,2, "hello",1==1);
+    print(a,arr);
+    print(one,two,three,last);
     print();
 
     map<int,string> x; x[1]="0"; x[15]="xx"; x[33]="64";

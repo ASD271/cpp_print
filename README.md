@@ -44,3 +44,15 @@ will output like
 ```
 this is an A instance: 1 2
 ```
+
+besides, this function can also print enum as string view, for example
+```c++
+enum {one=-5,two=0,three=5,last=126};
+print(one,two,three,last);
+```
+will output 
+```
+one two three last
+```
+
+this feature is origin from [magic_enum](https://github.com/Neargye/magic_enum),  and enum num is in range (MAGIC_ENUM_RANGE_MIN , MAGIC_ENUM_RANGE_MAX) (two define, you can change them in print.h). However, if the range more than 2000, compilation speed will become very slow.  
