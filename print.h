@@ -155,32 +155,33 @@ namespace cpp_print{
     >> : std::true_type {
     };
 
-    template<typename T, size_t i>
-    auto check_enum(std::unordered_map<size_t, std::string_view>& m)
-    -> std::enable_if_t<could_v_static_cast<T, size_t, i>::value, std::string_view> {
+    using enum_map=std::unordered_map<int, std::string_view>;
+
+    template<typename T, int i>
+    auto check_enum(enum_map & m)
+    -> std::enable_if_t<could_v_static_cast<T, int, i>::value, std::string_view> {
         std::string_view temp=name<T, static_cast<T>(i)>();
         if(!temp.empty()) m[i]=temp;
         return temp;
     }
 
-    template<typename T, size_t i>
-    auto check_enum(...) -> std::enable_if_t<!could_v_static_cast<T, size_t, i>::value, std::string_view> {
+    template<typename T, int i>
+    auto check_enum(...) -> std::enable_if_t<!could_v_static_cast<T, int, i>::value, std::string_view> {
         return {};
     }
 
-    template<typename T, size_t... idPos, size_t... idNeg>
-    [[nodiscard]] auto names_impl(std::index_sequence<idPos...>, std::index_sequence<idNeg...>) {
-        std::unordered_map<size_t, std::string_view> m{};
-        ((check_enum<T,idPos>(m)),...);
-        ((check_enum<T,-idNeg>(m)),...);
+    template<typename T,int MIN, int... ids>
+    [[nodiscard]] auto names_impl(std::integer_sequence<int,ids...>) {
+        enum_map m{};
+        ((check_enum<T,MIN+ids>(m)),...);
         return m;
     }
 
 
     template<typename T>
     [[nodiscard]]  auto names() {
-        static const auto result = names_impl<T> (std::make_index_sequence<MAGIC_ENUM_RANGE_MAX>(),
-                                                  std::make_index_sequence<- MAGIC_ENUM_RANGE_MIN>());
+        static const auto result = names_impl<T,MAGIC_ENUM_RANGE_MIN>
+                (std::make_integer_sequence<int,MAGIC_ENUM_RANGE_MAX-MAGIC_ENUM_RANGE_MIN>{});
         return result;
     }
 
@@ -198,8 +199,8 @@ namespace cpp_print{
     std::enable_if_t<std::is_enum_v<std::decay_t<T>>>
     _print(const T &t, const Params &params = {}) {
         std::stringstream ss;
-        if constexpr (could_static_cast<size_t,T>::value){
-            size_t x=static_cast<size_t>(t);
+        if constexpr (could_static_cast<int,T>::value){
+            auto x=static_cast<int>(t);
             if(names<T>().count(x)){
                 ss<<names<T>()[x];
             }else{

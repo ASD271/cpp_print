@@ -9,11 +9,12 @@ class A{
     }
 };
 enum {one=-5,two=0,three=5,last=126};
+enum class Color{red,blue};
 int main() {
     A a{};
     array<int,5> arr{1,2,3,4,5};
     print(a,arr);
-    print(one,two,three,last);
+    print(one,last,Color::red);
     print();
 
     map<int,string> x; x[1]="0"; x[15]="xx"; x[33]="64";
