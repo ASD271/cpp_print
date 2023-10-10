@@ -138,24 +138,33 @@ namespace cpp_print{
     }
 
     template<typename E, typename U, U x, typename=void>
-    struct could_static_cast : std::false_type {
+    struct could_v_static_cast : std::false_type {
     };
     template<typename E, typename U, U x>
-    struct could_static_cast<E, U, x, std::void_t<
+    struct could_v_static_cast<E, U, x, std::void_t<
             decltype(static_cast<E>(x))
+    >> : std::true_type {
+    };
+
+    template<typename E, typename U, typename=void>
+    struct could_static_cast : std::false_type {
+    };
+    template<typename E, typename U>
+    struct could_static_cast<E, U, std::void_t<
+            decltype(static_cast<E>(std::declval<U>()))
     >> : std::true_type {
     };
 
     template<typename T, size_t i>
     auto check_enum(std::unordered_map<size_t, std::string_view>& m)
-    -> std::enable_if_t<could_static_cast<T, size_t, i>::value, std::string_view> {
+    -> std::enable_if_t<could_v_static_cast<T, size_t, i>::value, std::string_view> {
         std::string_view temp=name<T, static_cast<T>(i)>();
         if(!temp.empty()) m[i]=temp;
         return temp;
     }
 
     template<typename T, size_t i>
-    auto check_enum(...) -> std::enable_if_t<!could_static_cast<T, size_t, i>::value, std::string_view> {
+    auto check_enum(...) -> std::enable_if_t<!could_v_static_cast<T, size_t, i>::value, std::string_view> {
         return {};
     }
 
@@ -171,7 +180,7 @@ namespace cpp_print{
     template<typename T>
     [[nodiscard]]  auto names() {
         static const auto result = names_impl<T> (std::make_index_sequence<MAGIC_ENUM_RANGE_MAX>(),
-                                                 std::make_index_sequence<- MAGIC_ENUM_RANGE_MIN>());
+                                                  std::make_index_sequence<- MAGIC_ENUM_RANGE_MIN>());
         return result;
     }
 
@@ -189,11 +198,17 @@ namespace cpp_print{
     std::enable_if_t<std::is_enum_v<std::decay_t<T>>>
     _print(const T &t, const Params &params = {}) {
         std::stringstream ss;
-        if(names<T>().count(t)){
-            ss<<names<T>()[t];
+        if constexpr (could_static_cast<size_t,T>::value){
+            size_t x=static_cast<size_t>(t);
+            if(names<T>().count(x)){
+                ss<<names<T>()[x];
+            }else{
+                ss<<"[warning: this enum "<<x<<" is not recognized]";
+            }
         }else{
-            ss<<"[warning: this enum "<<t<<" is not recognized]";
+            ss<<"[warning: this enum can not cast to size_t]";
         }
+
         _print(ss.str());
     }
 
