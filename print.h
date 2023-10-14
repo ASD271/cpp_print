@@ -207,10 +207,10 @@ namespace cpp_print{
                 ss<<"[warning: this enum "<<x<<" is not recognized]";
             }
         }else{
-            ss<<"[warning: this enum can not cast to size_t]";
+            ss<<"[warning: this enum can not cast to int]";
         }
 
-        _print(ss.str());
+        _print(ss.str(),params);
     }
 
     template<typename T>
