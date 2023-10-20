@@ -190,7 +190,8 @@ namespace cpp_print{
     void _print(T *const &x, const Params &params = {});
 
     template<typename T,size_t N>
-    void _print(const T (&t)[N],const Params& params);
+    std::enable_if_t<!std::is_same_v<std::decay_t<T>,char>>
+    _print(const T (&t)[N],const Params& params);
 
     template<typename T>
     std::enable_if_t<is_simple_unit<T>>
@@ -309,7 +310,7 @@ namespace cpp_print{
     }
 
     template<typename T,size_t N>
-    void
+    std::enable_if_t<!std::is_same_v<std::decay_t<T>,char>>
     _print(const T (&t)[N],const Params& params){
         *(params.out) << '[';
         bool first = true;
