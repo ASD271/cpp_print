@@ -187,7 +187,8 @@ namespace cpp_print{
 
 
     template<typename T>
-    void _print(T *const &x, const Params &params = {});
+    std::enable_if_t<!std::is_same_v<std::decay_t<T>,char>>
+    _print(T *const &x, const Params &params = {});
 
     template<typename T,size_t N>
     std::enable_if_t<!std::is_same_v<std::decay_t<T>,char>>
@@ -304,7 +305,7 @@ namespace cpp_print{
     }
 
     template<typename T>
-    void
+    std::enable_if_t<!std::is_same_v<std::decay_t<T>,char>>
     _print(T *const &x, const Params &params) {
         _print(*x, params);
     }
