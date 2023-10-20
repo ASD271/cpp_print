@@ -13,7 +13,8 @@ enum class Color{red,blue};
 int main() {
     A a{};
     array<int,5> arr{1,2,3,4,5};
-    print(a,arr);
+    int a2[5]={6,7,8,9,10};
+    print(a,"|",arr,a2);
     print(one,last,Color::red);
     print();
 

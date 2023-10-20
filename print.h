@@ -189,6 +189,9 @@ namespace cpp_print{
     template<typename T>
     void _print(T *const &x, const Params &params = {});
 
+    template<typename T,size_t N>
+    void _print(const T (&t)[N],const Params& params);
+
     template<typename T>
     std::enable_if_t<is_simple_unit<T>>
     _print(const T &x, const Params &params = {}) {
@@ -305,6 +308,19 @@ namespace cpp_print{
         _print(*x, params);
     }
 
+    template<typename T,size_t N>
+    void
+    _print(const T (&t)[N],const Params& params){
+        *(params.out) << '[';
+        bool first = true;
+        for (int i = 0; i < N; i++) {
+            if (!first) *(params.out) << ',';
+            first = false;
+            _print(t[i], params);
+        }
+        *(params.out) << ']';
+    }
+
     template<size_t s>
     void _print(const std::bitset<s> &b, const Params &params = {}) {
         bool hasOne = false;
@@ -367,7 +383,7 @@ void print(const T &arg, const Ts &... args) {
         }
         print(args...);// no need to print sep if it is the last object to print
     } else {// this branch will be called only when params is not settle
-        cpp_print::_print(arg);
+        cpp_print::_print(arg,{});
         print();
     }
 }
