@@ -354,10 +354,6 @@ namespace cpp_print{
 
 }
 
-void sep(const Params &p) {
-    *(p.out) << p.sep;
-}
-
 template<typename T>
 typename std::enable_if<std::is_same_v<T, Params>>::type
 print(const T &p) {
@@ -377,11 +373,12 @@ void print(const T &arg, const Ts &... args) {
         if constexpr (std::is_same_v<decltype(last), const Params &>) {
             cpp_print::_print(arg, last);
             if constexpr (sizeof...(args) > 1) {
-                sep(last);
+                *(last.out) << last.sep;
             }
         } else {
             cpp_print::_print(arg);
-            sep({});
+            Params p{};
+            *(p.out) << p.sep;
         }
         print(args...);// no need to print sep if it is the last object to print
     } else {// this branch will be called only when params is not settle
