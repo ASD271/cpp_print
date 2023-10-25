@@ -1,5 +1,6 @@
 #include "print.h"
 #include <fstream>
+#include <array>
 using namespace std;
 class A{
     int x=1,y=2;
@@ -24,5 +25,7 @@ int main() {
 
     std::ofstream file("test.txt");
 
-    print(x,"hello",s,' ',q,vector<vector<int>>{{}},Params{.sep=" | ",.out=&file});
+    print(x,"hello",s,' ',q,vector<vector<int>>{{}},Params{" | ","\n",&file});
+
+
 }
